@@ -1,0 +1,335 @@
+// Prisma schema for Mini-Amazon-for-Stores
+// Postgres. Money stored as Decimal(10,2). Stock mutations always run inside a
+// transaction together with an InventoryLog row so the audit trail can't drift.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  STORE_OWNER
+  STAFF
+  CUSTOMER
+}
+
+enum CartStatus {
+  ACTIVE
+  CHECKED_OUT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum OrderStatus {
+  PLACED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  UPI
+  CASH
+  CARD
+}
+
+enum InventoryAction {
+  SALE
+  RESTOCK
+  RETURN
+  DAMAGED
+  MANUAL_EDIT
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  fullName     String   @map("full_name")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  phone        String?
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  stores       Store[]
+  staffOf      Staff[]
+  ordersPlaced Order[]  @relation("UserOrders")
+
+  @@map("users")
+}
+
+model Store {
+  id         String   @id @default(uuid()) @db.Uuid
+  ownerId    String   @map("owner_id") @db.Uuid
+  storeName  String   @map("store_name")
+  storeSlug  String   @unique @map("store_slug")
+  address    String?
+  city       String?
+  state      String?
+  country    String?
+  postalCode String?  @map("postal_code")
+  phone      String?
+  qrCodeUrl  String?  @map("qr_code_url")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  owner          User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  staff          Staff[]
+  categories     Category[]
+  products       Product[]
+  customers      Customer[]
+  carts          Cart[]
+  orders         Order[]
+  inventoryLogs  InventoryLog[]
+  restocks       Restock[]
+  dailyAnalytics DailyAnalytics[]
+  discounts      Discount[]
+
+  @@map("stores")
+}
+
+model Staff {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  storeId     String   @map("store_id") @db.Uuid
+  permissions Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("staff")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([storeId])
+  @@map("categories")
+}
+
+model Product {
+  id            String   @id @default(uuid()) @db.Uuid
+  storeId       String   @map("store_id") @db.Uuid
+  categoryId    String?  @map("category_id") @db.Uuid
+  name          String
+  description   String?
+  barcode       String?
+  sku           String?
+  price         Decimal  @db.Decimal(10, 2)
+  costPrice     Decimal? @map("cost_price") @db.Decimal(10, 2)
+  stockQuantity Int      @default(0) @map("stock_quantity")
+  minimumStock  Int      @default(5) @map("minimum_stock")
+  imageUrl      String?  @map("image_url")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  images        ProductImage[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  inventoryLogs InventoryLog[]
+  restocks      Restock[]
+
+  @@index([storeId])
+  @@index([storeId, isActive])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  imageUrl  String   @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  fullName  String?  @map("full_name")
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  store  Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  carts  Cart[]
+  orders Order[]
+
+  @@index([storeId])
+  @@map("customers")
+}
+
+model Cart {
+  id         String     @id @default(uuid()) @db.Uuid
+  customerId String?    @map("customer_id") @db.Uuid
+  sessionId  String?    @map("session_id")
+  storeId    String     @map("store_id") @db.Uuid
+  status     CartStatus @default(ACTIVE)
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  customer Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  store    Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items    CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  cartId    String   @map("cart_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("cart_items")
+}
+
+model Order {
+  id             String         @id @default(uuid()) @db.Uuid
+  storeId        String         @map("store_id") @db.Uuid
+  customerId     String?        @map("customer_id") @db.Uuid
+  placedByUserId String?        @map("placed_by_user_id") @db.Uuid
+  orderNumber    String         @unique @map("order_number")
+  subtotal       Decimal?       @db.Decimal(10, 2)
+  taxAmount      Decimal?       @map("tax_amount") @db.Decimal(10, 2)
+  discountAmount Decimal?       @map("discount_amount") @db.Decimal(10, 2)
+  totalAmount    Decimal        @map("total_amount") @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod? @map("payment_method")
+  paymentStatus  PaymentStatus  @default(PENDING) @map("payment_status")
+  orderStatus    OrderStatus    @default(PLACED) @map("order_status")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  // RESTRICT: never cascade-delete sales records when a store/customer is removed.
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  placedBy  User?     @relation("UserOrders", fields: [placedByUserId], references: [id], onDelete: SetNull)
+  items     OrderItem[]
+  payments  Payment[]
+
+  @@index([storeId])
+  @@index([createdAt])
+  @@index([storeId, paymentStatus])
+  @@index([placedByUserId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @map("order_id") @db.Uuid
+  productId   String?  @map("product_id") @db.Uuid
+  productName String   @map("product_name") // snapshot
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2) // snapshot
+  quantity    Int
+  totalPrice  Decimal  @map("total_price") @db.Decimal(10, 2)
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@map("order_items")
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  orderId           String        @map("order_id") @db.Uuid
+  provider          String?
+  providerPaymentId String?       @map("provider_payment_id")
+  providerOrderId   String?       @map("provider_order_id")
+  amount            Decimal?      @db.Decimal(10, 2)
+  currency          String        @default("INR")
+  paymentMode       String?       @map("payment_mode")
+  status            PaymentStatus @default(PENDING)
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([providerOrderId])
+  @@map("payments")
+}
+
+model InventoryLog {
+  id             String          @id @default(uuid()) @db.Uuid
+  storeId        String          @map("store_id") @db.Uuid
+  productId      String          @map("product_id") @db.Uuid
+  action         InventoryAction
+  quantityChange Int             @map("quantity_change")
+  previousStock  Int?            @map("previous_stock")
+  newStock       Int?            @map("new_stock")
+  note           String?
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([storeId, createdAt])
+  @@map("inventory_logs")
+}
+
+model Restock {
+  id            String   @id @default(uuid()) @db.Uuid
+  storeId       String   @map("store_id") @db.Uuid
+  productId     String   @map("product_id") @db.Uuid
+  quantity      Int
+  supplierName  String?  @map("supplier_name")
+  purchasePrice Decimal? @map("purchase_price") @db.Decimal(10, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("restocks")
+}
+
+model DailyAnalytics {
+  id                String   @id @default(uuid()) @db.Uuid
+  storeId           String   @map("store_id") @db.Uuid
+  salesDate         DateTime @map("sales_date") @db.Date
+  totalOrders       Int      @default(0) @map("total_orders")
+  totalRevenue      Decimal  @default(0) @map("total_revenue") @db.Decimal(12, 2)
+  totalProductsSold Int      @default(0) @map("total_products_sold")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, salesDate])
+  @@map("daily_analytics")
+}
+
+model Discount {
+  id        String    @id @default(uuid()) @db.Uuid
+  storeId   String    @map("store_id") @db.Uuid
+  code      String
+  type      String // PERCENT | FLAT
+  value     Decimal   @db.Decimal(10, 2)
+  expiresAt DateTime? @map("expires_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, code])
+  @@map("discounts")
+}

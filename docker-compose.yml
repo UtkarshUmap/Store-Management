@@ -1,0 +1,18 @@
+# Spins up Postgres for local development.
+# Usage: docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: storeapp
+    # Host port 5434 to avoid colliding with other local Postgres instances.
+    # Inside the container the server still listens on 5432.
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
