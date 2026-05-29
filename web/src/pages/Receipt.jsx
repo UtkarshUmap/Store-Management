@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import gsap from 'gsap';
 import api from '../lib/api';
+import { formatINR } from '../lib/productPresentation';
 
-const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
-const fmt = (d) => new Date(d).toLocaleString('en-IN');
+const fmt = (date) => new Date(date).toLocaleString('en-IN');
 
 export default function Receipt() {
   const { orderNumber } = useParams();
@@ -23,129 +23,93 @@ export default function Receipt() {
   useEffect(() => {
     if (!order || !cardRef.current) return;
     const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-    tl.fromTo(
-      cardRef.current,
-      { y: 30, opacity: 0, scale: 0.96 },
-      { y: 0, opacity: 1, scale: 1, duration: 0.55 }
-    );
+    tl.fromTo(cardRef.current, { y: 30, opacity: 0, scale: 0.97 }, { y: 0, opacity: 1, scale: 1, duration: 0.55 });
     if (checkRef.current) {
-      tl.fromTo(
-        checkRef.current,
-        { scale: 0, rotate: -45 },
-        { scale: 1, rotate: 0, duration: 0.55, ease: 'back.out(2)' },
-        '-=0.25'
-      );
+      tl.fromTo(checkRef.current, { scale: 0, rotate: -35 }, { scale: 1, rotate: 0, duration: 0.55, ease: 'back.out(2)' }, '-=0.25');
     }
     return () => tl.kill();
   }, [order]);
 
   if (err) {
     return (
-      <div className="center">
-        <div className="empty" style={{ maxWidth: 360 }}>
-          <div className="empty-icon">🧾</div>
+      <div className="receipt-page">
+        <div className="empty premium-empty">
+          <div className="empty-icon">R</div>
           <h3>Receipt not found</h3>
-          <p>That order number doesn't exist.</p>
-          <div style={{ marginTop: 14 }}>
-            <Link to="/"><button className="ghost">Back home</button></Link>
-          </div>
+          <p>That order number does not exist.</p>
+          <Link to="/"><button className="btn-v2 subtle">Back home</button></Link>
         </div>
       </div>
     );
   }
-  if (!order) return <div className="center"><p className="muted">Loading…</p></div>;
 
-  const itemsCount = order.items.reduce((n, it) => n + it.quantity, 0);
+  if (!order) {
+    return (
+      <div className="receipt-page">
+        <div className="receipt-card"><p className="muted">Loading receipt...</p></div>
+      </div>
+    );
+  }
+
+  const itemsCount = order.items.reduce((count, item) => count + item.quantity, 0);
+  const success = order.paymentStatus === 'SUCCESS';
 
   return (
-    <div className="center" style={{ padding: '40px 16px' }}>
-      <div
-        ref={cardRef}
-        className="card grid printable"
-        style={{ width: 420, gap: 16, padding: 28 }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            ref={checkRef}
-            style={{
-              fontSize: 28,
-              display: 'inline-grid',
-              placeItems: 'center',
-              width: 64,
-              height: 64,
-              borderRadius: '50%',
-              background: order.paymentStatus === 'SUCCESS' ? 'var(--green-soft)' : 'var(--amber-soft)',
-              color: order.paymentStatus === 'SUCCESS' ? 'var(--green)' : 'var(--amber)',
-            }}
-          >
-            {order.paymentStatus === 'SUCCESS' ? '✓' : '⏳'}
+    <div className="receipt-page">
+      <div ref={cardRef} className="receipt-card printable">
+        <div className="receipt-status">
+          <div ref={checkRef} className={success ? 'success' : 'pending'}>
+            {success ? '✓' : '!'}
           </div>
-          <h2 className="display-serif" style={{ margin: '14px 0 4px', fontSize: 32 }}>
-            {order.paymentStatus === 'SUCCESS' ? 'Order confirmed' : 'Payment pending'}
-          </h2>
-          <span className="muted">{order.store?.storeName}</span>
+          <span className="section-eyebrow">Digital receipt</span>
+          <h1>{success ? 'Order confirmed' : 'Payment pending'}</h1>
+          <p>{order.store?.storeName}</p>
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gap: 6,
-            background: 'var(--bg)',
-            padding: 14,
-            borderRadius: 12,
-            fontSize: 13,
-          }}
-        >
-          <div className="row between">
-            <span className="muted">Order #</span>
-            <strong style={{ fontFamily: 'var(--font-mono)' }}>{order.orderNumber}</strong>
-          </div>
-          <div className="row between">
-            <span className="muted">Placed</span>
-            <span>{fmt(order.createdAt)}</span>
-          </div>
-          <div className="row between">
-            <span className="muted">Items</span>
-            <span>{itemsCount}</span>
-          </div>
-          <div className="row between">
-            <span className="muted">Payment</span>
-            <span className={`badge ${order.paymentStatus === 'SUCCESS' ? 'ok' : 'low'}`}>
-              {order.paymentMethod} · {order.paymentStatus}
-            </span>
+        <div className="receipt-summary">
+          <Line label="Order" value={order.orderNumber} mono />
+          <Line label="Placed" value={fmt(order.createdAt)} />
+          <Line label="Items" value={itemsCount} />
+          <div className="receipt-summary-row">
+            <span>Payment</span>
+            <strong><span className={`badge ${success ? 'ok' : 'low'}`}>{order.paymentMethod} · {order.paymentStatus}</span></strong>
           </div>
         </div>
 
-        <div className="grid" style={{ gap: 6, marginTop: 4 }}>
-          {order.items.map((it) => (
-            <div key={it.id} className="row between" style={{ fontSize: 14 }}>
-              <span>{it.productName} × {it.quantity}</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{inr(it.totalPrice)}</span>
+        <div className="receipt-items">
+          {order.items.map((item) => (
+            <div key={item.id}>
+              <span>{item.productName} x {item.quantity}</span>
+              <strong>{formatINR(item.totalPrice)}</strong>
             </div>
           ))}
         </div>
 
-        <hr style={{ border: 'none', borderTop: '1px solid var(--line)' }} />
-        <div className="row between" style={{ fontSize: 18 }}>
-          <strong>Total</strong>
-          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{inr(order.totalAmount)}</strong>
+        <div className="receipt-total">
+          <span>Total</span>
+          <strong>{formatINR(order.totalAmount)}</strong>
         </div>
 
-        <p className="muted" style={{ textAlign: 'center', fontSize: 13 }}>
+        <p className="receipt-note">
           {order.paymentMethod === 'CASH'
             ? 'Please pay cash at the counter.'
             : 'Show this screen at the counter.'}
         </p>
 
-        <div className="row" style={{ gap: 8 }}>
-          <button className="secondary" style={{ flex: 1 }} onClick={() => window.print()}>
-            Print receipt
-          </button>
-          <Link to="/" style={{ flex: 1 }}>
-            <button className="ghost" style={{ width: '100%' }}>Done</button>
-          </Link>
+        <div className="receipt-actions">
+          <button className="btn-v2 primary" onClick={() => window.print()}>Print receipt</button>
+          <Link to="/"><button className="btn-v2 subtle">Done</button></Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Line({ label, value, mono }) {
+  return (
+    <div className="receipt-summary-row">
+      <span>{label}</span>
+      <strong className={mono ? 'mono' : ''}>{value}</strong>
     </div>
   );
 }

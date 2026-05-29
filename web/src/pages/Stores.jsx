@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import api from '../lib/api';
 import { usePageEntrance, attachTilt } from '../lib/motion';
+import { formatINR } from '../lib/productPresentation';
 
 export default function Stores() {
   const nav = useNavigate();
@@ -19,13 +20,24 @@ export default function Stores() {
     load();
   }, []);
 
-  // Tilt on each store card.
   useEffect(() => {
     if (!gridRef.current) return;
-    const cards = gridRef.current.querySelectorAll('.card');
-    const detachers = [...cards].map((el) => attachTilt(el, { max: 5, scale: 1.012 }));
+    const cards = gridRef.current.querySelectorAll('.admin-store-card');
+    const detachers = [...cards].map((el) => attachTilt(el, { max: 2.8, scale: 1.006 }));
     return () => detachers.forEach((fn) => fn());
   }, [stores.length]);
+
+  const portfolio = useMemo(() => stores.reduce(
+    (acc, store) => {
+      const stats = store.stats || {};
+      acc.revenue += Number(stats.todayRevenue || 0);
+      acc.orders += Number(stats.todayOrders || 0);
+      acc.products += Number(stats.products || 0);
+      acc.lowStock += Number(stats.lowStock || 0);
+      return acc;
+    },
+    { revenue: 0, orders: 0, products: 0, lowStock: 0 }
+  ), [stores]);
 
   const create = async () => {
     if (!name.trim()) return;
@@ -45,100 +57,99 @@ export default function Stores() {
   };
 
   return (
-    <div className="grid" ref={rootRef} style={{ gap: 26 }}>
-      <div className="row between" data-anim="fade-up">
-        <h1>Your Stores</h1>
-      </div>
+    <div className="admin-page" ref={rootRef}>
+      <header className="admin-page-hero" data-anim="fade-up">
+        <div>
+          <span className="section-eyebrow">Store portfolio</span>
+          <h1>Your retail network</h1>
+          <p>Create storefronts, monitor daily performance, and open each store workspace from one polished command center.</p>
+        </div>
+        <div className="admin-create-panel">
+          <label htmlFor="store-name">New store</label>
+          <div>
+            <input
+              id="store-name"
+              placeholder="Ex: Fresh Basket Bandra"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && create()}
+            />
+            <button className="btn-v2 primary" onClick={create} disabled={creating}>
+              {creating ? 'Creating' : 'Create'}
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <div className="card row" data-anim="fade-up" style={{ gap: 12 }}>
-        <input
-          placeholder="New store name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && create()}
-        />
-        <button onClick={create} disabled={creating}>
-          {creating ? 'Creating…' : 'Create store'}
-        </button>
-      </div>
+      <section className="admin-metric-grid" data-anim="fade-up">
+        <Metric label="Today revenue" value={formatINR(portfolio.revenue)} />
+        <Metric label="Today orders" value={portfolio.orders.toLocaleString('en-IN')} />
+        <Metric label="Products listed" value={portfolio.products.toLocaleString('en-IN')} />
+        <Metric label="Low stock alerts" value={portfolio.lowStock.toLocaleString('en-IN')} tone={portfolio.lowStock ? 'warn' : 'ok'} />
+      </section>
 
-      <div
-        ref={gridRef}
-        className="grid"
-        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}
-      >
-        {stores.map((s) => {
-          const st = s.stats || {};
+      <section ref={gridRef} className="admin-store-grid">
+        {stores.map((store) => {
+          const stats = store.stats || {};
+          const hasLowStock = Number(stats.lowStock || 0) > 0;
           return (
-            <div
-              key={s.id}
-              className="card hover-lift grid"
-              data-anim="stagger-child"
-              style={{ gap: 12 }}
-            >
-              <div className="row between" style={{ alignItems: 'flex-start' }}>
+            <article key={store.id} className="admin-store-card" data-anim="stagger-child">
+              <div className="store-card-head">
                 <div>
-                  <strong style={{ fontSize: 17, fontFamily: 'var(--font-display)' }}>
-                    {s.storeName}
-                  </strong>
-                  <div className="muted" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, marginTop: 2 }}>
-                    /{s.storeSlug}
-                  </div>
+                  <span>/{store.storeSlug}</span>
+                  <h2>{store.storeName}</h2>
                 </div>
-                {st.lowStock > 0 && (
-                  <span className="stat-pill warn">⚠ {st.lowStock} low</span>
-                )}
+                <span className={`admin-status ${hasLowStock ? 'warn' : 'ok'}`}>
+                  {hasLowStock ? `${stats.lowStock} low` : 'Healthy'}
+                </span>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 8,
-                  padding: '12px 0',
-                  borderTop: '1px dashed var(--line)',
-                  borderBottom: '1px dashed var(--line)',
-                }}
-              >
+              <div className="store-card-stats">
                 <div>
-                  <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Today's revenue
-                  </div>
-                  <div className="stat" style={{ fontSize: 22 }}>
-                    ₹{Number(st.todayRevenue || 0).toLocaleString('en-IN')}
-                  </div>
+                  <span>Revenue</span>
+                  <strong>{formatINR(stats.todayRevenue)}</strong>
                 </div>
                 <div>
-                  <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Today's orders
-                  </div>
-                  <div className="stat" style={{ fontSize: 22 }}>{st.todayOrders || 0}</div>
+                  <span>Orders</span>
+                  <strong>{stats.todayOrders || 0}</strong>
+                </div>
+                <div>
+                  <span>Products</span>
+                  <strong>{stats.products || 0}</strong>
                 </div>
               </div>
 
-              <div className="row" style={{ gap: 8, marginTop: 2 }}>
-                <span className="stat-pill muted">{st.products || 0} products</span>
-              </div>
-
-              <div className="row" style={{ gap: 8, marginTop: 4 }}>
-                <button onClick={() => nav(`/admin/${s.id}/dashboard`)}>Open →</button>
-                <button className="secondary" onClick={() => showQr(s)}>
+              <div className="store-card-actions">
+                <button className="btn-v2 dark" onClick={() => nav(`/admin/${store.id}/dashboard`)}>
+                  Open workspace
+                </button>
+                <button className="btn-v2 subtle" onClick={() => showQr(store)}>
                   QR code
                 </button>
               </div>
-            </div>
+            </article>
           );
         })}
+
         {!stores.length && (
-          <div className="empty" data-anim="fade-up">
-            <div className="empty-icon">🏬</div>
+          <div className="empty premium-empty" data-anim="fade-up">
+            <div className="empty-icon">S</div>
             <h3>No stores yet</h3>
-            <p>Create your first store above. We'll generate a printable QR.</p>
+            <p>Create your first store and Storeapp will generate a QR storefront automatically.</p>
           </div>
         )}
-      </div>
+      </section>
 
       {qr && <QrModal qr={qr} onClose={() => setQr(null)} />}
+    </div>
+  );
+}
+
+function Metric({ label, value, tone }) {
+  return (
+    <div className={`admin-metric ${tone || ''}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
@@ -146,48 +157,30 @@ export default function Stores() {
 function QrModal({ qr, onClose }) {
   const backdrop = useRef(null);
   const panel = useRef(null);
+
   useEffect(() => {
     const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
     tl.fromTo(backdrop.current, { opacity: 0 }, { opacity: 1, duration: 0.25 })
-      .fromTo(
-        panel.current,
-        { y: 30, opacity: 0, scale: 0.95 },
-        { y: 0, opacity: 1, scale: 1, duration: 0.5 },
-        '-=0.1'
-      );
+      .fromTo(panel.current, { y: 24, opacity: 0, scale: 0.97 }, { y: 0, opacity: 1, scale: 1, duration: 0.45 }, '-=0.08');
     return () => tl.kill();
   }, []);
 
   const dismiss = () => {
     gsap
       .timeline({ onComplete: onClose })
-      .to(panel.current, { y: 18, opacity: 0, scale: 0.96, duration: 0.22, ease: 'power3.in' })
-      .to(backdrop.current, { opacity: 0, duration: 0.18 }, '-=0.15');
+      .to(panel.current, { y: 18, opacity: 0, scale: 0.98, duration: 0.2, ease: 'power3.in' })
+      .to(backdrop.current, { opacity: 0, duration: 0.16 }, '-=0.12');
   };
 
   return (
     <div className="modal-backdrop" ref={backdrop} onClick={dismiss}>
-      <div
-        ref={panel}
-        className="card grid"
-        style={{ width: 380, textAlign: 'center', gap: 14 }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div ref={panel} className="qr-modal" onClick={(e) => e.stopPropagation()}>
+        <span className="section-eyebrow">QR storefront</span>
         <h3>{qr.name}</h3>
-        <img
-          src={qr.qrCodeUrl}
-          alt="QR"
-          style={{ width: '100%', borderRadius: 14, background: '#fff', padding: 12 }}
-        />
-        <a href={qr.storefrontUrl} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-          {qr.storefrontUrl}
-        </a>
-        <p className="muted" style={{ fontSize: 13 }}>
-          Print this and stick it on the counter. Customers scan to shop.
-        </p>
-        <button className="ghost" onClick={dismiss}>
-          Close
-        </button>
+        <img src={qr.qrCodeUrl} alt={`QR code for ${qr.name}`} />
+        <a href={qr.storefrontUrl} target="_blank" rel="noreferrer">{qr.storefrontUrl}</a>
+        <p>Print this code for the counter, shelves, receipts, or in-store posters.</p>
+        <button className="btn-v2 subtle" onClick={dismiss}>Close</button>
       </div>
     </div>
   );

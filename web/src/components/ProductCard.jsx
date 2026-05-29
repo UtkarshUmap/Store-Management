@@ -70,7 +70,7 @@ export default function ProductCard({
           {quantity > 0 ? (
             <div className="listing-qty" aria-label={`${quantity} in cart`}>
               <button type="button" onClick={() => onDec(product.id)} aria-label={`Remove one ${product.name}`}>
-                −
+                -
               </button>
               <span>{quantity}</span>
               <button

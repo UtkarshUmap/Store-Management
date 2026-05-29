@@ -28,120 +28,136 @@ export default function Dashboard() {
   useCountUp(prodRef, data?.totalProducts, { format: (v) => num(v) });
   useCountUp(lowRef, data?.lowStock?.length ?? 0, { format: (v) => num(v) });
 
-  if (!data) return <p className="muted">Loading…</p>;
+  if (!data) {
+    return (
+      <div className="admin-page">
+        <div className="admin-loading-card">
+          <div className="skel skel-text" style={{ width: '48%' }} />
+          <div className="skel skel-text" style={{ width: '76%' }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid" ref={rootRef} style={{ gap: 22 }}>
-      <h1 data-anim="fade-up">Dashboard</h1>
+    <div className="admin-page" ref={rootRef}>
+      <header className="admin-page-hero compact" data-anim="fade-up">
+        <div>
+          <span className="section-eyebrow">Live analytics</span>
+          <h1>Dashboard</h1>
+          <p>Track revenue, order velocity, inventory pressure, and the products driving the last 30 days.</p>
+        </div>
+      </header>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))' }}>
-        <div className="card hover-lift" data-anim="stagger-child">
-          <div className="muted">Today's revenue</div>
-          <div className="stat" ref={revRef}>{inr(0)}</div>
-        </div>
-        <div className="card hover-lift" data-anim="stagger-child">
-          <div className="muted">Today's orders</div>
-          <div className="stat" ref={ordRef}>0</div>
-        </div>
-        <div className="card hover-lift" data-anim="stagger-child">
-          <div className="muted">Active products</div>
-          <div className="stat" ref={prodRef}>0</div>
-        </div>
-        <div className="card hover-lift" data-anim="stagger-child">
-          <div className="muted">Low / out of stock</div>
-          <div
-            className="stat"
-            ref={lowRef}
-            style={{
-              background: data.lowStock.length
-                ? 'linear-gradient(135deg, #b45309, #dc2626)'
-                : 'linear-gradient(135deg, var(--ink), #4338ca)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-            }}
-          >
-            0
+      <section className="admin-metric-grid" data-anim="fade-up">
+        <Metric label="Today's revenue" refProp={revRef} fallback={inr(0)} />
+        <Metric label="Today's orders" refProp={ordRef} fallback="0" />
+        <Metric label="Active products" refProp={prodRef} fallback="0" />
+        <Metric label="Low / out of stock" refProp={lowRef} fallback="0" tone={data.lowStock.length ? 'warn' : 'ok'} />
+      </section>
+
+      <section className="admin-analytics-layout">
+        <div className="admin-panel chart-panel" data-anim="fade-up">
+          <div className="admin-panel-head">
+            <div>
+              <span>Revenue trend</span>
+              <h2>Last 14 days</h2>
+            </div>
+            <strong>{inr(series.reduce((sum, day) => sum + Number(day.revenue || 0), 0))}</strong>
+          </div>
+          <div className="admin-chart-wrap">
+            <ResponsiveContainer>
+              <AreaChart data={series}>
+                <defs>
+                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0f7a55" stopOpacity={0.38} />
+                    <stop offset="100%" stopColor="#0f7a55" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(10,31,25,0.09)" />
+                <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} fontSize={12} stroke="#60706a" />
+                <YAxis fontSize={12} stroke="#60706a" />
+                <Tooltip formatter={(v) => inr(v)} contentStyle={{ border: '1px solid rgba(10,31,25,0.12)', borderRadius: 8 }} />
+                <Area type="monotone" dataKey="revenue" stroke="#0f7a55" strokeWidth={2.5} fill="url(#revGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      <div className="card" data-anim="fade-up">
-        <h3>Revenue (last 14 days)</h3>
-        <div style={{ height: 260 }}>
-          <ResponsiveContainer>
-            <AreaChart data={series}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eef0f6" />
-              <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} fontSize={12} stroke="#9aa1ad" />
-              <YAxis fontSize={12} stroke="#9aa1ad" />
-              <Tooltip formatter={(v) => inr(v)} contentStyle={{ border: '1px solid #e6e8ef', borderRadius: 10 }} />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#6366f1"
-                strokeWidth={2.5}
-                fill="url(#revGrad)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="admin-panel insight-panel" data-anim="fade-up">
+          <span>Operational focus</span>
+          <h2>{data.lowStock.length ? 'Restock before peak hours' : 'Inventory looks healthy'}</h2>
+          <p>
+            {data.lowStock.length
+              ? `${data.lowStock.length} products are below minimum stock. Prioritize top sellers first.`
+              : 'No products are below their minimum stock threshold right now.'}
+          </p>
         </div>
-      </div>
+      </section>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
-        <div className="card" data-anim="fade-up">
-          <h3>Low stock alerts</h3>
+      <section className="admin-two-column">
+        <DataPanel title="Low stock alerts" empty="All stocked up." dataAnim="fade-up">
           {data.lowStock.length ? (
-            <table>
+            <table className="admin-table">
               <thead>
                 <tr><th>Product</th><th>Stock</th><th>Min</th></tr>
               </thead>
               <tbody>
-                {data.lowStock.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.name}</td>
-                    <td>
-                      <span className={`badge ${p.stockQuantity === 0 ? 'out' : 'low'}`}>
-                        {p.stockQuantity}
-                      </span>
-                    </td>
-                    <td>{p.minimumStock}</td>
+                {data.lowStock.map((product) => (
+                  <tr key={product.id}>
+                    <td>{product.name}</td>
+                    <td><span className={`badge ${product.stockQuantity === 0 ? 'out' : 'low'}`}>{product.stockQuantity}</span></td>
+                    <td>{product.minimumStock}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : (
-            <p className="muted">All stocked up 🎉</p>
-          )}
-        </div>
+          ) : null}
+        </DataPanel>
 
-        <div className="card" data-anim="fade-up">
-          <h3>Top sellers (30 days)</h3>
+        <DataPanel title="Top sellers (30 days)" empty="No sales yet." dataAnim="fade-up">
           {data.topProducts.length ? (
-            <table>
+            <table className="admin-table">
               <thead>
                 <tr><th>Product</th><th>Units</th><th>Revenue</th></tr>
               </thead>
               <tbody>
-                {data.topProducts.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.name}</td>
-                    <td>{p.unitsSold}</td>
-                    <td>{inr(p.revenue)}</td>
+                {data.topProducts.map((product, index) => (
+                  <tr key={`${product.name}-${index}`}>
+                    <td>{product.name}</td>
+                    <td>{product.unitsSold}</td>
+                    <td>{inr(product.revenue)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : (
-            <p className="muted">No sales yet.</p>
-          )}
+          ) : null}
+        </DataPanel>
+      </section>
+    </div>
+  );
+}
+
+function Metric({ label, refProp, fallback, tone }) {
+  return (
+    <div className={`admin-metric ${tone || ''}`} data-anim="stagger-child">
+      <span>{label}</span>
+      <strong ref={refProp}>{fallback}</strong>
+    </div>
+  );
+}
+
+function DataPanel({ title, empty, children, dataAnim }) {
+  const hasChildren = Boolean(children);
+  return (
+    <div className="admin-panel" data-anim={dataAnim}>
+      <div className="admin-panel-head">
+        <div>
+          <span>Table</span>
+          <h2>{title}</h2>
         </div>
       </div>
+      {hasChildren ? children : <p className="muted">{empty}</p>}
     </div>
   );
 }

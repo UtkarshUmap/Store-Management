@@ -4,7 +4,10 @@
 
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const prefersReduced = () =>
   typeof window !== 'undefined' &&
@@ -28,11 +31,14 @@ export function startLenis() {
     touchMultiplier: 1.2,
   });
 
+  lenisInstance.on('scroll', ScrollTrigger.update);
+
   const raf = (time) => {
     lenisInstance.raf(time);
     rafId = requestAnimationFrame(raf);
   };
   rafId = requestAnimationFrame(raf);
+  ScrollTrigger.refresh();
   return lenisInstance;
 }
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import api from '../lib/api';
+import ProductCard from '../components/ProductCard';
 import { useCart } from '../store';
 import { attachTilt } from '../lib/motion';
 
@@ -61,7 +62,7 @@ export default function Storefront() {
   // Tilt + stagger on filtered grid; rerun when filter changes.
   useEffect(() => {
     if (!gridRef.current) return;
-    const cards = gridRef.current.querySelectorAll('.product-card');
+    const cards = gridRef.current.querySelectorAll('[data-product-card]');
     if (!cards.length) return;
     gsap.fromTo(
       cards,
@@ -87,9 +88,9 @@ export default function Storefront() {
 
   if (err) {
     return (
-      <div className="center">
-        <div className="empty" style={{ maxWidth: 360 }}>
-          <div className="empty-icon">🏬</div>
+      <div className="center storefront-page">
+        <div className="empty premium-empty" style={{ maxWidth: 360 }}>
+          <div className="empty-icon">S</div>
           <h3>Store not found</h3>
           <p>The link or QR code may be out of date.</p>
         </div>
@@ -99,11 +100,11 @@ export default function Storefront() {
 
   if (loading || !store) {
     return (
-      <div className="container">
-        <div className="skel" style={{ height: 120, borderRadius: 20 }} />
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', marginTop: 22 }}>
+      <div className="storefront-page">
+        <div className="storefront-hero-skel skel" />
+        <div className="premium-grid storefront-product-grid">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="card" style={{ padding: 14 }}>
+            <div key={i} className="listing-card listing-card-skeleton">
               <div className="skel skel-img" />
               <div className="skel skel-text" style={{ width: '80%' }} />
               <div className="skel skel-text" style={{ width: '40%' }} />
@@ -118,23 +119,36 @@ export default function Storefront() {
   const totalInStock = products.filter((p) => p.inStock).length;
 
   return (
-    <div className="container" ref={rootRef} style={{ paddingBottom: 110 }}>
-      <header className="hero" data-anim="fade-up">
-        <h1>{store.storeName}</h1>
-        <div className="hero-sub">
-          {store.city ? `${store.city} · ` : ''}Scan-and-shop storefront
+    <div className="storefront-page" ref={rootRef}>
+      <header className="storefront-hero-v2" data-anim="fade-up">
+        <div>
+          <span className="section-eyebrow">QR storefront</span>
+          <h1>{store.storeName}</h1>
+          <p>{store.city ? `${store.city} · ` : ''}Browse live shelf inventory, add products, and check out with cash or online payment.</p>
         </div>
-        <div className="hero-meta">
-          <span>🛒 {totalInStock} of {totalItems} items in stock</span>
-          {store.phone && <span>📞 {store.phone}</span>}
+        <div className="storefront-hero-stats">
+          <div>
+            <span>In stock</span>
+            <strong>{totalInStock}/{totalItems}</strong>
+          </div>
+          <div>
+            <span>Categories</span>
+            <strong>{categories.length || 1}</strong>
+          </div>
+          {store.phone && (
+            <div>
+              <span>Phone</span>
+              <strong>{store.phone}</strong>
+            </div>
+          )}
         </div>
       </header>
 
-      <div className="stick-bar" data-anim="fade-up">
+      <div className="storefront-filter-bar" data-anim="fade-up">
         <input
           type="search"
           inputMode="search"
-          placeholder="Search products…"
+          placeholder="Search products..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -160,59 +174,33 @@ export default function Storefront() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="empty" data-anim="fade-up" style={{ marginTop: 24 }}>
-          <div className="empty-icon">🔎</div>
+        <div className="empty premium-empty" data-anim="fade-up" style={{ marginTop: 24 }}>
+          <div className="empty-icon">0</div>
           <h3>No products match</h3>
           <p>Try a different search or category.</p>
         </div>
       ) : (
-        <div
-          ref={gridRef}
-          className="grid"
-          style={{
-            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-            marginTop: 20,
-          }}
-        >
+        <div ref={gridRef} className="premium-grid storefront-product-grid" style={{ marginTop: 20 }}>
           {filtered.map((p) => {
             const qty = cart.items[p.id]?.quantity || 0;
             return (
-              <div key={p.id} className="card product-card">
-                <img
-                  src={p.imageUrl || `https://placehold.co/300x200?text=${encodeURIComponent(p.name)}`}
-                  alt={p.name}
-                  draggable="false"
-                  loading="lazy"
-                />
-                <strong>{p.name}</strong>
-                <span>{inr(p.price)}</span>
-                {!p.inStock ? (
-                  <span className="badge out">Out of stock</span>
-                ) : qty > 0 ? (
-                  <div className="qty">
-                    <button className="secondary" onClick={() => cart.dec(p.id)}>−</button>
-                    <span>{qty}</span>
-                    <button
-                      className="secondary"
-                      onClick={() => cart.add(p)}
-                      disabled={qty >= p.stockQuantity}
-                    >
-                      +
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={() => cart.add(p)}>Add</button>
-                )}
-              </div>
+              <ProductCard
+                key={p.id}
+                product={p}
+                quantity={qty}
+                onAdd={cart.add}
+                onDec={cart.dec}
+                actionLabel="Add"
+              />
             );
           })}
         </div>
       )}
 
       {cartCount > 0 && !checkout && (
-        <div className="cart-bar" ref={cartBarRef}>
-          <span>🛒 {cartCount} item{cartCount > 1 ? 's' : ''} · {inr(cart.total())}</span>
-          <button className="secondary" onClick={() => setCheckout(true)}>Checkout →</button>
+        <div className="cart-bar premium-cart-bar" ref={cartBarRef}>
+          <span>{cartCount} item{cartCount > 1 ? 's' : ''} · {inr(cart.total())}</span>
+          <button className="secondary" onClick={() => setCheckout(true)}>Checkout</button>
         </div>
       )}
 
@@ -315,19 +303,24 @@ function CheckoutModal({ store, onClose, onDone }) {
     <div className="modal-backdrop" ref={backdropRef} onClick={dismiss}>
       <div
         ref={panelRef}
-        className="card grid"
-        style={{ width: 380, gap: 14 }}
+        className="checkout-panel"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3>Checkout</h3>
-        <div className="grid" style={{ gap: 6 }}>
+        <div className="admin-panel-head">
+          <div>
+            <span>Secure checkout</span>
+            <h2>Review order</h2>
+          </div>
+          <strong>{inr(cart.total())}</strong>
+        </div>
+        <div className="checkout-lines">
           {Object.values(cart.items).map(({ product, quantity }) => (
             <div key={product.id} className="row between">
               <span>{product.name} × {quantity}</span>
               <span>{inr(Number(product.price) * quantity)}</span>
             </div>
           ))}
-          <hr style={{ border: 'none', borderTop: '1px solid var(--line)' }} />
+          <hr />
           <div className="row between"><strong>Total</strong><strong>{inr(cart.total())}</strong></div>
         </div>
 
@@ -343,17 +336,15 @@ function CheckoutModal({ store, onClose, onDone }) {
           onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
         />
 
-        <div className="row" style={{ gap: 8 }}>
+        <div className="payment-toggle">
           <button
-            className={method === 'RAZORPAY' ? '' : 'ghost'}
-            style={{ flex: 1 }}
+            className={method === 'RAZORPAY' ? 'active' : ''}
             onClick={() => setMethod('RAZORPAY')}
           >
             Pay online
           </button>
           <button
-            className={method === 'CASH' ? '' : 'ghost'}
-            style={{ flex: 1 }}
+            className={method === 'CASH' ? 'active' : ''}
             onClick={() => setMethod('CASH')}
           >
             Cash
@@ -361,10 +352,10 @@ function CheckoutModal({ store, onClose, onDone }) {
         </div>
 
         {err && <div className="error">{err}</div>}
-        <button onClick={placeOrder} disabled={busy}>
+        <button className="btn-v2 primary" onClick={placeOrder} disabled={busy}>
           {busy ? 'Processing…' : method === 'CASH' ? 'Place cash order' : `Pay ${inr(cart.total())}`}
         </button>
-        <button className="ghost" onClick={dismiss} disabled={busy}>Cancel</button>
+        <button className="btn-v2 subtle" onClick={dismiss} disabled={busy}>Cancel</button>
       </div>
     </div>
   );
