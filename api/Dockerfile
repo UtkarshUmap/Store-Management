@@ -44,6 +44,7 @@ RUN apt-get update -y \
 COPY api/package.json api/package-lock.json ./
 COPY api/prisma ./prisma
 COPY api/src ./src
+COPY api/docker-entrypoint.sh ./docker-entrypoint.sh
 COPY --from=api-deps /api/node_modules ./node_modules
 
 # Built SPA, served by Express in production
@@ -57,7 +58,6 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# docker-compose.prod.yml sets `init: true` so the container gets a proper
-# PID 1 (no need for dumb-init in the image). Apply pending migrations on
-# boot, then start the server.
-CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
+# Apply pending migrations on boot (with retry for a cold Neon compute), then
+# start the server. See api/docker-entrypoint.sh.
+CMD ["sh", "./docker-entrypoint.sh"]
