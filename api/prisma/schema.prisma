@@ -333,3 +333,15 @@ model Discount {
   @@unique([storeId, code])
   @@map("discounts")
 }
+
+model BarcodeReference {
+  barcode   String   @id
+  name      String
+  brand     String?
+  category  String?
+  imageUrl  String?
+  source    String   @default("openfoodfacts")
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([name])
+}

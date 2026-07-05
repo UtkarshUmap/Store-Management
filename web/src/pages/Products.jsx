@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import api from '../lib/api';
 import { usePageEntrance } from '../lib/motion';
 import { formatINR, getProductImage } from '../lib/productPresentation';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 const empty = {
   name: '',
@@ -27,6 +28,7 @@ export default function Products() {
   const [scannedProduct, setScannedProduct] = useState(null);
   const [lookupSource, setLookupSource] = useState('');
   const [lookupMessage, setLookupMessage] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -96,12 +98,13 @@ export default function Products() {
     }
   };
 
-  const doBarcodeLookup = async () => {
+  const doBarcodeLookup = async (codeOverride) => {
+    const scanCode = (typeof codeOverride === 'string' ? codeOverride : form.barcode)?.trim();
     setErr('');
     setLookupMessage('');
     setLookupSource('');
     setScannedProduct(null);
-    if (!form.barcode?.trim()) {
+    if (!scanCode) {
       setErr('Enter a barcode number to scan.');
       return;
     }
@@ -109,7 +112,7 @@ export default function Products() {
     setLookupLoading(true);
     try {
       const response = await api.get(`/stores/${storeId}/products/lookup`, {
-        params: { barcode: form.barcode.trim() },
+        params: { barcode: scanCode },
       });
       const { source, product } = response.data;
       if (!product) {
@@ -123,7 +126,7 @@ export default function Products() {
       const categoryId = product.categoryId || categories.find((category) => category.name.toLowerCase() === categoryName.toLowerCase())?.id || '';
       const mapped = {
         name: product.name || '',
-        barcode: product.barcode || form.barcode.trim(),
+        barcode: product.barcode || scanCode,
         brand: product.description || '',
         price: product.price ?? '',
         stockQuantity: product.stockQuantity ?? 0,
@@ -209,8 +212,21 @@ export default function Products() {
           <button className="btn-v2 primary" type="button" onClick={doBarcodeLookup} disabled={lookupLoading}>
             {lookupLoading ? 'Looking up…' : 'Lookup product'}
           </button>
+          <button className="btn-v2" type="button" onClick={() => setScannerOpen(true)}>
+            Scan with camera
+          </button>
         </div>
         {lookupMessage && <div className="barcode-lookup-hint">{lookupMessage}</div>}
+        {scannerOpen && (
+          <BarcodeScanner
+            onClose={() => setScannerOpen(false)}
+            onDetected={(code) => {
+              setScannerOpen(false);
+              setForm((f) => ({ ...f, barcode: code }));
+              doBarcodeLookup(code);
+            }}
+          />
+        )}
       </section>
 
       <section className="product-editor admin-panel" data-anim="fade-up">
