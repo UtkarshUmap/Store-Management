@@ -3367,6 +3367,46 @@ tbody tr:hover { background: rgba(192, 73, 42, 0.05); }
   font-weight: 700;
 }
 
+.barcode-quick-add {
+  display: grid;
+  gap: 14px;
+}
+
+.barcode-quick-add-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.barcode-quick-add-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.barcode-lookup-row,
+.barcode-restock-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  grid-column: span 3;
+}
+
+.barcode-lookup-hint {
+  grid-column: span 3;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--v2-green-soft);
+  border: 1px solid rgba(21, 128, 61, 0.15);
+  color: var(--v2-ink);
+  font-size: 0.95rem;
+}
+
+.barcode-restock-row label {
+  margin-bottom: 0;
+}
+
 .table-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
