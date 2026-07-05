@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { usePageEntrance } from '../lib/motion';
 import { formatINR, getProductImage } from '../lib/productPresentation';
 import BarcodeScanner from '../components/BarcodeScanner';
+import OnlinePricesPanel from '../components/OnlinePricesPanel';
 
 const empty = {
   name: '',
@@ -302,6 +303,12 @@ export default function Products() {
           )}
         </div>
       </section>
+
+      <OnlinePricesPanel
+        storeId={storeId}
+        productName={form.name}
+        onImportPrice={(price) => setForm((f) => ({ ...f, price }))}
+      />
 
       <section className="admin-panel" data-anim="fade-up">
         <div className="admin-panel-head">
