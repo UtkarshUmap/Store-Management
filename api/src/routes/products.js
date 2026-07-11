@@ -6,6 +6,7 @@ const { validate } = require('../middleware/error');
 const { authenticate } = require('../middleware/auth');
 const { requireStoreAccess } = require('../middleware/storeAccess');
 const { adjustStock } = require('../lib/inventory');
+const { lookupProductByBarcode, normalizeBarcode } = require('../lib/barcode');
 
 // ---------------- Categories ----------------
 router.get(
@@ -60,6 +61,34 @@ router.get(
       orderBy: { createdAt: 'desc' },
     });
     res.json({ products });
+  })
+);
+
+router.get(
+  '/:storeId/products/lookup',
+  authenticate,
+  requireStoreAccess,
+  validate({ query: z.object({ barcode: z.string().min(1) }) }),
+  asyncHandler(async (req, res) => {
+    const barcode = normalizeBarcode(req.query.barcode);
+    if (!barcode) {
+      throw new ApiError(400, 'Barcode is required');
+    }
+
+    const existing = await prisma.product.findFirst({
+      where: { storeId: req.store.id, barcode },
+      include: { category: true },
+    });
+    if (existing) {
+      return res.json({ source: 'db', product: existing });
+    }
+
+    const externalProduct = await lookupProductByBarcode(barcode);
+    if (externalProduct) {
+      return res.json({ source: 'external', product: externalProduct });
+    }
+
+    throw new ApiError(404, 'No product found for barcode');
   })
 );
 

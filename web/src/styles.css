@@ -3367,6 +3367,46 @@ tbody tr:hover { background: rgba(192, 73, 42, 0.05); }
   font-weight: 700;
 }
 
+.barcode-quick-add {
+  display: grid;
+  gap: 14px;
+}
+
+.barcode-quick-add-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.barcode-quick-add-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.barcode-lookup-row,
+.barcode-restock-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  grid-column: span 3;
+}
+
+.barcode-lookup-hint {
+  grid-column: span 3;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--v2-green-soft);
+  border: 1px solid rgba(21, 128, 61, 0.15);
+  color: var(--v2-ink);
+  font-size: 0.95rem;
+}
+
+.barcode-restock-row label {
+  margin-bottom: 0;
+}
+
 .table-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -3897,3 +3937,73 @@ tbody tr:hover { background: rgba(192, 73, 42, 0.05); }
     width: 100%;
   }
 }
+
+/* ============================================================================
+   Append to web/src/styles.css
+   Styles for BarcodeScanner + OnlinePricesPanel
+   ============================================================================ */
+
+/* --- Camera scanner modal --- */
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.scanner-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: min(440px, 100%);
+  padding: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.scanner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.scanner-head h3 { margin: 0; font-size: 1.05rem; }
+.scanner-viewport {
+  width: 100%;
+  min-height: 240px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+.scanner-viewport video { width: 100% !important; height: auto !important; }
+.scanner-hint { margin: 10px 2px 2px; color: #666; font-size: 0.85rem; }
+.scanner-error { margin: 10px 2px 2px; color: #c0392b; font-size: 0.9rem; }
+
+/* --- Online prices panel --- */
+.online-prices { margin-top: 20px; }
+.online-prices-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.online-prices-head h3 { margin: 0; font-size: 1rem; }
+.online-prices-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.online-prices-error { margin-top: 10px; color: #c0392b; font-size: 0.9rem; }
+.online-prices-hint { margin-top: 10px; color: #666; font-size: 0.85rem; }
+.online-prices-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+.online-prices-table th,
+.online-prices-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+}
+.online-prices-table th { color: #888; font-weight: 600; font-size: 0.8rem; }
+.stale-tag { color: #b7791f; font-size: 0.78rem; }
+.btn-small { padding: 4px 12px; font-size: 0.82rem; }

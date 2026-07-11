@@ -13,6 +13,7 @@ const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 const publicRoutes = require('./routes/public');
 const meRoutes = require('./routes/me');
+const marketPriceRoutes = require('./routes/marketPrices');
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 app.use('/api/stores', storeRoutes);
 app.use('/api/stores', productRoutes); // shares /:storeId namespace
 app.use('/api/stores', orderRoutes);
+app.use('/api/stores', marketPriceRoutes); // online competitor prices
 app.use('/api/public', publicRoutes);
 app.use('/api/me', meRoutes);
 

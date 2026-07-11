@@ -3,8 +3,19 @@ import { useParams } from 'react-router-dom';
 import api from '../lib/api';
 import { usePageEntrance } from '../lib/motion';
 import { formatINR, getProductImage } from '../lib/productPresentation';
+import BarcodeScanner from '../components/BarcodeScanner';
+import OnlinePricesPanel from '../components/OnlinePricesPanel';
 
-const empty = { name: '', price: '', stockQuantity: 0, minimumStock: 5, categoryId: '', imageUrl: '' };
+const empty = {
+  name: '',
+  barcode: '',
+  brand: '',
+  price: '',
+  stockQuantity: 0,
+  minimumStock: 5,
+  categoryId: '',
+  imageUrl: '',
+};
 
 export default function Products() {
   const { storeId } = useParams();
@@ -14,6 +25,12 @@ export default function Products() {
   const [editing, setEditing] = useState(null);
   const [restockId, setRestockId] = useState(null);
   const [restockQty, setRestockQty] = useState('');
+  const [scanRestockQty, setScanRestockQty] = useState('');
+  const [scannedProduct, setScannedProduct] = useState(null);
+  const [lookupSource, setLookupSource] = useState('');
+  const [lookupMessage, setLookupMessage] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
   const [err, setErr] = useState('');
 
   const rootRef = usePageEntrance([products.length]);
@@ -36,12 +53,16 @@ export default function Products() {
 
   const save = async () => {
     setErr('');
-    const payload = { ...form, categoryId: form.categoryId || null, imageUrl: form.imageUrl || null };
+    const payload = { ...form, categoryId: form.categoryId || null, imageUrl: form.imageUrl || null, description: form.brand || null };
+    delete payload.brand;
     try {
       if (editing) await api.put(`/stores/${storeId}/products/${editing}`, payload);
       else await api.post(`/stores/${storeId}/products`, payload);
       setForm(empty);
       setEditing(null);
+      setScannedProduct(null);
+      setLookupMessage('');
+      setLookupSource('');
       load();
     } catch (e) {
       setErr(e.response?.data?.error || 'Save failed');
@@ -52,6 +73,8 @@ export default function Products() {
     setEditing(product.id);
     setForm({
       name: product.name,
+      barcode: product.barcode || '',
+      brand: product.description || '',
       price: product.price,
       stockQuantity: product.stockQuantity,
       minimumStock: product.minimumStock,
@@ -76,6 +99,82 @@ export default function Products() {
     }
   };
 
+  const doBarcodeLookup = async (codeOverride) => {
+    const scanCode = (typeof codeOverride === 'string' ? codeOverride : form.barcode)?.trim();
+    setErr('');
+    setLookupMessage('');
+    setLookupSource('');
+    setScannedProduct(null);
+    if (!scanCode) {
+      setErr('Enter a barcode number to scan.');
+      return;
+    }
+
+    setLookupLoading(true);
+    try {
+      const response = await api.get(`/stores/${storeId}/products/lookup`, {
+        params: { barcode: scanCode },
+      });
+      const { source, product } = response.data;
+      if (!product) {
+        setLookupMessage('No product details found. You can still fill the form manually.');
+        setEditing(null);
+        setScannedProduct(null);
+        return;
+      }
+
+      const categoryName = product.category?.name || product.category || product.categoryName || '';
+      const categoryId = product.categoryId || categories.find((category) => category.name.toLowerCase() === categoryName.toLowerCase())?.id || '';
+      const mapped = {
+        name: product.name || '',
+        barcode: product.barcode || scanCode,
+        brand: product.description || '',
+        price: product.price ?? '',
+        stockQuantity: product.stockQuantity ?? 0,
+        minimumStock: product.minimumStock ?? 5,
+        categoryId,
+        imageUrl: product.imageUrl || '',
+      };
+      setForm(mapped);
+      if (source === 'db') {
+        setScannedProduct(product);
+        setLookupSource('db');
+        setLookupMessage('Product exists in your store. Enter restock quantity or edit details.');
+        setEditing(product.id);
+      } else {
+        setLookupSource(source);
+        setLookupMessage('Product info was found and filled in. Review details, enter stock, and save.');
+        setEditing(null);
+      }
+    } catch (e) {
+      if (e.response?.status === 404) {
+        setLookupMessage('No matching barcode found. You can still create the product manually.');
+      } else {
+        setErr(e.response?.data?.error || 'Barcode lookup failed');
+      }
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const restockScannedProduct = async () => {
+    setErr('');
+    if (!scannedProduct) return;
+    const quantity = Number(scanRestockQty);
+    if (!quantity || quantity <= 0) {
+      setErr('Enter a valid quantity to restock.');
+      return;
+    }
+    try {
+      await api.post(`/stores/${storeId}/products/${scannedProduct.id}/restock`, { quantity });
+      setScanRestockQty('');
+      setLookupMessage(`Restocked ${quantity} ${scannedProduct.name}.`);
+      load();
+    } catch (e) {
+      setErr(e.response?.data?.error || 'Restock failed');
+    }
+  };
+
   const upd = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   return (
@@ -95,6 +194,42 @@ export default function Products() {
         <Metric label="Low stock" value={summary.low} tone={summary.low ? 'warn' : 'ok'} />
       </section>
 
+      <section className="barcode-quick-add admin-panel" data-anim="fade-up">
+        <div className="admin-panel-head">
+          <div>
+            <span>Quick add</span>
+            <h2>Scan barcode to add a product</h2>
+          </div>
+        </div>
+        <div className="barcode-quick-add-grid">
+          <label className="wide">
+            <span>Barcode / UPC</span>
+            <input
+              placeholder="Scan or paste the barcode"
+              value={form.barcode}
+              onChange={upd('barcode')}
+            />
+          </label>
+          <button className="btn-v2 primary" type="button" onClick={doBarcodeLookup} disabled={lookupLoading}>
+            {lookupLoading ? 'Looking up…' : 'Lookup product'}
+          </button>
+          <button className="btn-v2" type="button" onClick={() => setScannerOpen(true)}>
+            Scan with camera
+          </button>
+        </div>
+        {lookupMessage && <div className="barcode-lookup-hint">{lookupMessage}</div>}
+        {scannerOpen && (
+          <BarcodeScanner
+            onClose={() => setScannerOpen(false)}
+            onDetected={(code) => {
+              setScannerOpen(false);
+              setForm((f) => ({ ...f, barcode: code }));
+              doBarcodeLookup(code);
+            }}
+          />
+        )}
+      </section>
+
       <section className="product-editor admin-panel" data-anim="fade-up">
         <div className="admin-panel-head">
           <div>
@@ -108,6 +243,10 @@ export default function Products() {
           <label>
             <span>Product name</span>
             <input placeholder="Ex: Lays Classic 52g" value={form.name} onChange={upd('name')} />
+          </label>
+          <label>
+            <span>Brand</span>
+            <input placeholder="Ex: Lay's" value={form.brand} onChange={upd('brand')} />
           </label>
           <label>
             <span>Price</span>
@@ -134,6 +273,23 @@ export default function Products() {
             <span>Image URL</span>
             <input placeholder="Optional product image URL" value={form.imageUrl} onChange={upd('imageUrl')} />
           </label>
+          {lookupMessage && <div className="barcode-lookup-hint">{lookupMessage}</div>}
+          {lookupSource === 'db' && scannedProduct && (
+            <div className="barcode-restock-row">
+              <label>
+                <span>Restock quantity</span>
+                <input
+                  type="number"
+                  placeholder="Qty"
+                  value={scanRestockQty}
+                  onChange={(e) => setScanRestockQty(e.target.value)}
+                />
+              </label>
+              <button className="btn-v2 primary" type="button" onClick={restockScannedProduct}>
+                Restock scanned product
+              </button>
+            </div>
+          )}
         </div>
 
         {err && <div className="error">{err}</div>}
@@ -147,6 +303,12 @@ export default function Products() {
           )}
         </div>
       </section>
+
+      <OnlinePricesPanel
+        storeId={storeId}
+        productName={form.name}
+        onImportPrice={(price) => setForm((f) => ({ ...f, price }))}
+      />
 
       <section className="admin-panel" data-anim="fade-up">
         <div className="admin-panel-head">
