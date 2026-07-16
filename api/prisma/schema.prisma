@@ -337,6 +337,52 @@ model Discount {
   @@map("discounts")
 }
 
+// ---------------------------------------------------------------------------
+// Master product catalog — a store-agnostic library of products seeded from
+// quick-commerce platforms (Blinkit/Zepto/Instamart), bucketed by category.
+// Shop owners browse this and one-click "+ Add" a product into their store.
+// Prices here are SNAPSHOTS from the last crawl; live price is refreshed
+// on-demand per product via the scraper.
+// ---------------------------------------------------------------------------
+model MasterCategory {
+  id        String          @id @default(uuid()) @db.Uuid
+  name      String          @unique
+  slug      String          @unique
+  imageUrl  String?         @map("image_url")
+  sortOrder Int             @default(0) @map("sort_order")
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  products  MasterProduct[]
+
+  @@map("master_categories")
+}
+
+model MasterProduct {
+  id             String    @id @default(uuid()) @db.Uuid
+  categoryId     String    @map("category_id") @db.Uuid
+  name           String
+  brand          String?
+  description    String?
+  imageUrl       String?   @map("image_url")
+  unit           String? // e.g. "500 g", "1 L"
+  referencePrice Decimal?  @map("reference_price") @db.Decimal(10, 2)
+  mrp            Decimal?  @db.Decimal(10, 2)
+  variations     Json? // reserved for size/price variants
+  sourcePlatform String?   @map("source_platform") // blinkit | zepto | instamart
+  sourceUrl      String?   @map("source_url")
+  externalId     String    @map("external_id") // stable id within a platform
+  lastFetchedAt  DateTime? @map("last_fetched_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  category MasterCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([sourcePlatform, externalId])
+  @@index([categoryId])
+  @@index([name])
+  @@map("master_products")
+}
+
 model BarcodeReference {
   barcode   String   @id
   name      String

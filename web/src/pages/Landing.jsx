@@ -195,7 +195,7 @@ export default function Landing() {
             </p>
             <div className="hero-cta-row">
               <Link to="/register"><button className="btn-v2 primary">Start Selling</button></Link>
-              <Link to="/shop"><button className="btn-v2 glass">View Demo</button></Link>
+              <Link to="/login"><button className="btn-v2 glass">View demo</button></Link>
             </div>
             <div className="hero-trust" aria-label="Trust indicators">
               <span>Built for owner-led stores</span>
@@ -354,7 +354,7 @@ export default function Landing() {
           <h2>Launch a premium storefront for your shop today.</h2>
           <div>
             <Link to="/register"><button className="btn-v2 primary">Start Selling</button></Link>
-            <Link to="/shop"><button className="btn-v2 glass">View Demo</button></Link>
+            <Link to="/login"><button className="btn-v2 glass">View demo</button></Link>
           </div>
         </section>
       </main>

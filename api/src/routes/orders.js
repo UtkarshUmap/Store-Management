@@ -12,7 +12,17 @@ router.get(
   asyncHandler(async (req, res) => {
     const orders = await prisma.order.findMany({
       where: { storeId: req.store.id },
-      include: { items: true, customer: true },
+      include: {
+        items: true,
+        customer: true,
+        // Who actually placed it (a signed-in shopper), plus the payment rows —
+        // without these the owner can't tell who an order belongs to or how it
+        // was settled.
+        placedBy: { select: { id: true, fullName: true, email: true, phone: true } },
+        payments: {
+          select: { provider: true, status: true, providerPaymentId: true, paymentMode: true, amount: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
@@ -89,19 +99,28 @@ router.get(
   authenticate,
   requireStoreAccess,
   asyncHandler(async (req, res) => {
-    const days = Math.min(Number(req.query.days) || 14, 90);
+    // Up to a year. Beyond ~2 months a per-day series is unreadable (and 365
+    // points is a lot to ship), so widen the bucket as the range grows.
+    const days = Math.min(Math.max(Number(req.query.days) || 14, 1), 365);
+    const bucket = days <= 31 ? 'day' : days <= 120 ? 'week' : 'month';
     const since = new Date();
     since.setDate(since.getDate() - days);
-    const rows = await prisma.$queryRaw`
-      SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS "date",
-             COUNT(*)::int AS "orders",
-             COALESCE(SUM(total_amount), 0) AS "revenue"
-      FROM orders
-      WHERE store_id = ${req.store.id}::uuid
-        AND payment_status = 'SUCCESS'
-        AND created_at >= ${since}
-      GROUP BY 1 ORDER BY 1`;
-    res.json({ series: rows });
+
+    // date_trunc's unit can't be a bound parameter, so it comes from the
+    // whitelist above — never from user input.
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT to_char(date_trunc('${bucket}', created_at), 'YYYY-MM-DD') AS "date",
+              COUNT(*)::int AS "orders",
+              COALESCE(SUM(total_amount), 0) AS "revenue"
+       FROM orders
+       WHERE store_id = $1::uuid
+         AND payment_status = 'SUCCESS'
+         AND created_at >= $2
+       GROUP BY 1 ORDER BY 1`,
+      req.store.id,
+      since
+    );
+    res.json({ series: rows, days, bucket });
   })
 );
 

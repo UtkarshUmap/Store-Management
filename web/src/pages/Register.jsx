@@ -4,7 +4,7 @@ import gsap from 'gsap';
 import api from '../lib/api';
 import { useAuth } from '../store';
 
-const ROLE_HOME = { CUSTOMER: '/shop', STORE_OWNER: '/admin' };
+const ROLE_HOME = { CUSTOMER: '/my', STORE_OWNER: '/admin' };
 
 export default function Register() {
   const nav = useNavigate();

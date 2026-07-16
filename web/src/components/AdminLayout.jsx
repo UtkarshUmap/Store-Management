@@ -5,7 +5,8 @@ import { useAuth } from '../store';
 
 const navItems = [
   { label: 'Dashboard', path: 'dashboard', meta: 'Sales pulse' },
-  { label: 'Products', path: 'products', meta: 'Catalog ops' },
+  { label: 'Products', path: 'products', meta: 'Add to shop' },
+  { label: 'Inventory', path: 'inventory', meta: 'Your shelf' },
   { label: 'Orders', path: 'orders', meta: 'Checkout desk' },
 ];
 
@@ -37,13 +38,19 @@ export default function AdminLayout() {
   }, []);
 
   useEffect(() => {
-    if (!mainRef.current) return;
+    const el = mainRef.current;
+    if (!el) return;
     const tween = gsap.fromTo(
-      mainRef.current,
+      el,
       { y: 12, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.45, ease: 'power3.out', clearProps: 'transform' }
+      { y: 0, opacity: 1, duration: 0.45, ease: 'power3.out', clearProps: 'transform,opacity' }
     );
-    return () => tween.kill();
+    return () => {
+      // Killing the tween mid-flight leaves the inline opacity:0 it had just
+      // set, which blanks the whole page. Always restore visibility on cleanup.
+      tween.kill();
+      gsap.set(el, { clearProps: 'transform,opacity' });
+    };
   }, [loc.pathname]);
 
   const onLogout = () => {

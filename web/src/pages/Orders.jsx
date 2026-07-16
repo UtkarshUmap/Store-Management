@@ -4,6 +4,11 @@ import api from '../lib/api';
 import { usePageEntrance } from '../lib/motion';
 import { formatINR } from '../lib/productPresentation';
 
+const fmtFull = (date) => new Date(date).toLocaleString('en-IN', {
+  day: '2-digit', month: 'short', year: 'numeric',
+  hour: '2-digit', minute: '2-digit',
+});
+
 const fmt = (date) => new Date(date).toLocaleString('en-IN', {
   day: '2-digit',
   month: 'short',
@@ -106,30 +111,100 @@ export default function Orders() {
       </section>
 
       {selected && (
-        <section className="admin-panel order-detail-panel" data-anim="fade-up">
-          <div className="admin-panel-head">
-            <div>
-              <span>Order detail</span>
-              <h2>{selected.orderNumber}</h2>
+        <div className="pq-sheet-backdrop" onClick={() => setOpen(null)}>
+          <div className="order-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="pq-sheet-head">
+              <div>
+                <span>Order detail</span>
+                <h2>{selected.orderNumber}</h2>
+              </div>
+              <button className="pq-sheet-close" onClick={() => setOpen(null)} aria-label="Close">×</button>
+            </header>
+
+            <div className="order-modal-body">
+              {/* Who placed it. A signed-in shopper comes through `placedBy`;
+                  a walk-in who typed their details comes through `customer`. */}
+              <div className="order-meta-grid">
+                <div>
+                  <label>Customer</label>
+                  <strong>
+                    {selected.placedBy?.fullName ||
+                      selected.customer?.fullName ||
+                      'Walk-in customer'}
+                  </strong>
+                  {(selected.placedBy?.email || selected.customer?.email) && (
+                    <span>{selected.placedBy?.email || selected.customer?.email}</span>
+                  )}
+                  {(selected.placedBy?.phone || selected.customer?.phone) && (
+                    <span>{selected.placedBy?.phone || selected.customer?.phone}</span>
+                  )}
+                  {!selected.placedBy && !selected.customer && (
+                    <span className="muted">Not signed in — no contact details</span>
+                  )}
+                </div>
+                <div>
+                  <label>Placed</label>
+                  <strong>{fmtFull(selected.createdAt)}</strong>
+                </div>
+                <div>
+                  <label>Payment</label>
+                  <strong>{selected.paymentMethod}</strong>
+                  <span>
+                    <em className={`badge ${selected.paymentStatus.toLowerCase()}`}>
+                      {selected.paymentStatus}
+                    </em>
+                  </span>
+                  {selected.payments?.[0]?.providerPaymentId && (
+                    <span className="order-txn">Txn {selected.payments[0].providerPaymentId}</span>
+                  )}
+                </div>
+                <div>
+                  <label>Order status</label>
+                  <strong>{selected.orderStatus}</strong>
+                  <span>{selected.items.reduce((n, i) => n + i.quantity, 0)} items</span>
+                </div>
+              </div>
+
+              <h3 className="order-sec-title">Products purchased</h3>
+              <table className="order-items">
+                <thead>
+                  <tr><th>Product</th><th>Unit price</th><th>Qty</th><th>Amount</th></tr>
+                </thead>
+                <tbody>
+                  {selected.items.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.productName}</td>
+                      <td>{formatINR(item.unitPrice)}</td>
+                      <td>{item.quantity}</td>
+                      <td>{formatINR(item.totalPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="order-bill">
+                <div><span>Subtotal</span><span>{formatINR(selected.subtotal ?? selected.totalAmount)}</span></div>
+                {Number(selected.taxAmount) > 0 && (
+                  <div><span>Tax</span><span>{formatINR(selected.taxAmount)}</span></div>
+                )}
+                {Number(selected.discountAmount) > 0 && (
+                  <div><span>Discount</span><span>− {formatINR(selected.discountAmount)}</span></div>
+                )}
+                <div className="order-bill-total">
+                  <span>Total {selected.paymentStatus === 'SUCCESS' ? 'paid' : 'due'}</span>
+                  <strong>{formatINR(selected.totalAmount)}</strong>
+                </div>
+              </div>
             </div>
-            <strong>{formatINR(selected.totalAmount)}</strong>
+
+            <footer className="pq-sheet-foot">
+              <a className="btn-v2 subtle" href={`/receipt/${selected.orderNumber}`} target="_blank" rel="noreferrer">
+                Open receipt
+              </a>
+              <button className="btn-v2 primary" onClick={() => setOpen(null)}>Done</button>
+            </footer>
           </div>
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead><tr><th>Product</th><th>Unit</th><th>Qty</th><th>Total</th></tr></thead>
-              <tbody>
-                {selected.items.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.productName}</td>
-                    <td>{formatINR(item.unitPrice)}</td>
-                    <td>{item.quantity}</td>
-                    <td>{formatINR(item.totalPrice)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        </div>
       )}
     </div>
   );

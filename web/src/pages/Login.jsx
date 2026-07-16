@@ -5,7 +5,7 @@ import api from '../lib/api';
 import { useAuth } from '../store';
 
 const ROLE_HOME = {
-  CUSTOMER: '/shop',
+  CUSTOMER: '/my',
   STORE_OWNER: '/admin',
   STAFF: '/admin',
   SUPER_ADMIN: '/admin',

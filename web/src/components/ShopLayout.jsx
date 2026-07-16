@@ -20,13 +20,19 @@ export default function ShopLayout() {
   }, []);
 
   useEffect(() => {
-    if (!mainRef.current) return;
+    const el = mainRef.current;
+    if (!el) return;
     const tween = gsap.fromTo(
-      mainRef.current,
+      el,
       { y: 12, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.45, ease: 'power3.out', clearProps: 'transform' }
+      { y: 0, opacity: 1, duration: 0.45, ease: 'power3.out', clearProps: 'transform,opacity' }
     );
-    return () => tween.kill();
+    return () => {
+      // Killing the tween mid-flight leaves the inline opacity:0 it had just
+      // set, which blanks the whole page. Always restore visibility on cleanup.
+      tween.kill();
+      gsap.set(el, { clearProps: 'transform,opacity' });
+    };
   }, [loc.pathname]);
 
   const onLogout = () => {
@@ -45,13 +51,15 @@ export default function ShopLayout() {
         </Link>
 
         <nav className="shop-nav">
-          <NavLink to="/shop" className={({ isActive }) => (isActive ? 'active' : '')}>
-            Shop
-          </NavLink>
           {token && (
-            <NavLink to="/my/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
-              My orders
-            </NavLink>
+            <>
+              <NavLink to="/my" end className={({ isActive }) => (isActive ? 'active' : '')}>
+                Home
+              </NavLink>
+              <NavLink to="/my/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
+                My orders
+              </NavLink>
+            </>
           )}
         </nav>
 

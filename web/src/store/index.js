@@ -29,15 +29,34 @@ export const useAuth = create((set) => ({
   },
 }));
 
-// Cart lives client-side; only hits the server at checkout.
+// Cart lives client-side; only hits the server at checkout. It's persisted to
+// localStorage because checkout sends the shopper through /login — an in-memory
+// cart would be wiped by that round-trip and they'd lose their basket.
+const CART_KEY = 'cart';
+let bootCart = {};
+try {
+  const raw = localStorage.getItem(CART_KEY);
+  if (raw) bootCart = JSON.parse(raw) || {};
+} catch {
+  /* ignore corrupt cart */
+}
+const persist = (items) => {
+  try {
+    localStorage.setItem(CART_KEY, JSON.stringify(items));
+  } catch {
+    /* quota / private mode — cart still works in memory */
+  }
+  return { items };
+};
+
 export const useCart = create((set, get) => ({
-  items: {}, // productId -> { product, quantity }
+  items: bootCart, // productId -> { product, quantity }
   add: (product) =>
     set((s) => {
       const cur = s.items[product.id]?.quantity || 0;
       const max = product.stockQuantity ?? Infinity;
       const quantity = Math.min(cur + 1, max);
-      return { items: { ...s.items, [product.id]: { product, quantity } } };
+      return persist({ ...s.items, [product.id]: { product, quantity } });
     }),
   dec: (productId) =>
     set((s) => {
@@ -47,15 +66,15 @@ export const useCart = create((set, get) => ({
       const items = { ...s.items };
       if (quantity <= 0) delete items[productId];
       else items[productId] = { ...cur, quantity };
-      return { items };
+      return persist(items);
     }),
   remove: (productId) =>
     set((s) => {
       const items = { ...s.items };
       delete items[productId];
-      return { items };
+      return persist(items);
     }),
-  clear: () => set({ items: {} }),
+  clear: () => set(persist({})),
   total: () =>
     Object.values(get().items).reduce(
       (sum, { product, quantity }) => sum + Number(product.price) * quantity,

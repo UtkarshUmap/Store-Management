@@ -159,9 +159,23 @@ router.post(
   validate({ body: checkoutSchema }),
   asyncHandler(async (req, res) => {
     const { storeSlug, paymentMethod, customer, items } = req.body;
-    // If the caller is a logged-in CUSTOMER, link the order to them.
-    const placedByUserId =
-      req.user && req.user.role === 'CUSTOMER' ? req.user.id : null;
+    // Link the order to whoever placed it, whatever their role — /api/me/orders
+    // serves any authenticated user, so restricting this to CUSTOMER silently
+    // dropped orders out of the buyer's own history.
+    //
+    // A JWT only proves the token was signed by us, not that the user still
+    // exists (e.g. a token issued before a database restore). Writing a dangling
+    // placed_by_user_id blows up the FK mid-transaction as a 500, so verify the
+    // user is real and fall back to an anonymous order rather than failing the
+    // customer's checkout.
+    let placedByUserId = null;
+    if (req.user?.id) {
+      const exists = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { id: true },
+      });
+      placedByUserId = exists ? req.user.id : null;
+    }
 
     const store = await prisma.store.findUnique({ where: { storeSlug } });
     if (!store) throw new ApiError(404, 'Store not found');

@@ -67,6 +67,11 @@ router.get(
       where: { id: req.user.id },
       select: { id: true, fullName: true, email: true, role: true, phone: true },
     });
+    // A validly-signed token can still name a user who no longer exists (say,
+    // after a database restore). Returning 200 + {user:null} left the client
+    // "logged in" with a dead token forever; a 401 makes it clear the session
+    // and send them back to login.
+    if (!user) throw new ApiError(401, 'Your session is no longer valid. Please log in again.');
     res.json({ user });
   })
 );
