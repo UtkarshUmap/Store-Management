@@ -5353,7 +5353,19 @@ a.admin-metric.is-clickable.warn:hover .metric-cta { color: var(--amber); }
 .cust-home [data-anim="fade-up"]:nth-child(3) { animation-delay: 0.10s; }
 .cust-home [data-anim="fade-up"]:nth-child(4) { animation-delay: 0.15s; }
 .cust-home [data-anim="fade-up"]:nth-child(5) { animation-delay: 0.20s; }
-@keyframes cust-in { from { opacity: 0; transform: translateY(16px); } }
+
+@keyframes cust-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cust-home [data-anim="fade-up"] { animation: none; }
 }
