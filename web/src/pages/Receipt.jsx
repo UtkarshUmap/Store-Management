@@ -66,6 +66,23 @@ export default function Receipt() {
           <p>{order.store?.storeName}</p>
         </div>
 
+        {/* Where the order actually is. "Confirmed" alone leaves the shopper
+            guessing what happens next; three states answer it. */}
+        <div className="cx-steps">
+          <div className="cx-step done">
+            <i aria-hidden>✓</i>
+            <span>Placed</span>
+          </div>
+          <div className={`cx-step ${success ? 'done' : ''}`}>
+            <i aria-hidden>{success ? '✓' : '2'}</i>
+            <span>{success ? 'Confirmed' : 'Awaiting payment'}</span>
+          </div>
+          <div className="cx-step">
+            <i aria-hidden>3</i>
+            <span>Collect at counter</span>
+          </div>
+        </div>
+
         <div className="receipt-summary">
           <Line label="Order" value={order.orderNumber} mono />
           <Line label="Placed" value={fmt(order.createdAt)} />
@@ -98,7 +115,7 @@ export default function Receipt() {
 
         <div className="receipt-actions">
           <button className="btn-v2 primary" onClick={() => window.print()}>Print receipt</button>
-          <Link to="/"><button className="btn-v2 subtle">Done</button></Link>
+          <Link to="/my"><button className="btn-v2 subtle">Done</button></Link>
         </div>
       </div>
     </div>

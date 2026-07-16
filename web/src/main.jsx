@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import 'lenis/dist/lenis.css';
 import './styles.css';
+
+import './customer.css';
 import api from './lib/api';
 import { useAuth } from './store';
 import { startLenis, stopLenis, scrollTo } from './lib/motion';

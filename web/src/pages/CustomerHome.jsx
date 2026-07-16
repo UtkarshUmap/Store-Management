@@ -1,7 +1,7 @@
 // CUSTOMER HOME — the shopper's dashboard. Welcome + scan a shop's QR to start
 // shopping + a record of every shop they've visited and what they spent.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../store';
 import { formatINR } from '../lib/productPresentation';
@@ -29,6 +29,7 @@ function slugFromScan(text) {
 export default function CustomerHome() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
@@ -42,6 +43,16 @@ export default function CustomerHome() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // The phone tab bar links to /my?scan=1 — honour it, then drop the param so a
+  // back-navigation doesn't reopen the camera.
+  useEffect(() => {
+    if (params.get('scan') !== '1') return;
+    setScanErr('');
+    setScanning(true);
+    params.delete('scan');
+    setParams(params, { replace: true });
+  }, [params, setParams]);
 
   const stats = useMemo(() => {
     const paid = orders.filter((o) => o.paymentStatus === 'SUCCESS');
@@ -121,7 +132,7 @@ export default function CustomerHome() {
           <p>Point your camera at the QR code at the counter. You'll see that shop's products by category.</p>
           {scanErr && <div className="error">{scanErr}</div>}
           <button className="btn-v2 primary scan-btn" onClick={() => { setScanErr(''); setScanning(true); }}>
-            Open scanner
+            <span aria-hidden>⧉</span> Open scanner
           </button>
         </div>
       </section>
@@ -141,6 +152,7 @@ export default function CustomerHome() {
         <section className="cust-section" data-anim="fade-up">
           <div className="cust-section-head">
             <h2>Shops you've visited</h2>
+            <span className="cust-sub">{shops.length} shop{shops.length > 1 ? 's' : ''}</span>
           </div>
           <div className="shop-cards">
             {shops.map((s) => (
@@ -148,9 +160,9 @@ export default function CustomerHome() {
                 <span className="shop-card-badge">{s.storeName.slice(0, 1).toUpperCase()}</span>
                 <div className="shop-card-body">
                   <strong>{s.storeName}</strong>
-                  <span>{s.city || 'Local shop'}</span>
+                  <span>{s.city || 'Local shop'} · last visit {ago(s.last)}</span>
                   <span className="shop-card-meta">
-                    {s.visits} order{s.visits > 1 ? 's' : ''} · {formatINR(s.spent)}
+                    {s.visits} order{s.visits > 1 ? 's' : ''} · {formatINR(s.spent)} spent
                   </span>
                 </div>
                 <span className="shop-card-go">Shop again →</span>
@@ -164,7 +176,7 @@ export default function CustomerHome() {
         <section className="cust-section" data-anim="fade-up">
           <div className="cust-section-head">
             <h2>What you buy most</h2>
-            <span className="muted cust-sub">Across every shop</span>
+            <span className="cust-sub">Across every shop</span>
           </div>
           <div className="fav-list">
             {stats.favourites.map((f, i) => (
@@ -187,6 +199,7 @@ export default function CustomerHome() {
         <section className="cust-section" data-anim="fade-up">
           <div className="cust-section-head">
             <h2>Payments</h2>
+            <span className="cust-sub">How you pay</span>
           </div>
           <div className="pay-cards">
             <div className="pay-card">

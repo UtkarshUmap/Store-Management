@@ -319,6 +319,10 @@ function ShopProduct({ product, cart }) {
   return (
     <article className="sp-card">
       <div className="sp-media">
+        {/* Scarcity is the strongest nudge a shelf has — surface it on the photo. */}
+        {canBuy && Number(product.stockQuantity) <= 8 && (
+          <span className="sp-flag">Only {product.stockQuantity} left</span>
+        )}
         <img src={getProductImage(product)} alt={product.name} loading="lazy" draggable="false" />
         {!canBuy && <span className="sp-soldout">Sold out</span>}
       </div>
@@ -381,7 +385,10 @@ function CartDrawer({ products, onClose, onCheckout }) {
     <div className="modal-backdrop" ref={backdropRef} onClick={onClose}>
       <aside className="cart-drawer" ref={panelRef} onClick={(e) => e.stopPropagation()}>
         <div className="cart-drawer-head">
-          <h2>Your cart</h2>
+          <h2>
+            Your cart
+            {lines.length > 0 && <span className="cx-count">{cart.count()} items</span>}
+          </h2>
           <button className="cart-drawer-close" onClick={onClose} aria-label="Close cart">
             ×
           </button>
@@ -389,11 +396,21 @@ function CartDrawer({ products, onClose, onCheckout }) {
 
         {lines.length === 0 ? (
           <div className="cart-empty">
+            <div className="cx-empty-art" aria-hidden>🛒</div>
             <p className="muted">Your cart is empty.</p>
             <button className="btn-v2" onClick={onClose}>Browse products</button>
           </div>
         ) : (
           <>
+            {/* Pickup promise. A cart with no reassurance is a cart people leave. */}
+            <div className="cart-promise">
+              <em aria-hidden>⚡</em>
+              <div>
+                Ready for pickup in minutes
+                <small>Collect at the counter — pay when you get there.</small>
+              </div>
+            </div>
+
             <div className="cart-lines">
               {lines.map(({ product, quantity }) => (
                 <div className="cart-line" key={product.id}>
@@ -441,13 +458,36 @@ function CartDrawer({ products, onClose, onCheckout }) {
               </div>
             )}
 
+            {/* Nothing is added on top — say so explicitly rather than letting
+                the shopper wonder what a "handling fee" line might appear at
+                the last step. */}
+            <div className="cx-bill">
+              <h4>Bill details</h4>
+              <div className="cx-bill-row">
+                <span>Item total ({cart.count()} item{cart.count() > 1 ? 's' : ''})</span>
+                <span>{inr(cart.total())}</span>
+              </div>
+              <div className="cx-bill-row free">
+                <span>Handling charge</span>
+                <span><s>₹15</s> FREE</span>
+              </div>
+              <div className="cx-bill-row free">
+                <span>Store pickup</span>
+                <span>FREE</span>
+              </div>
+              <div className="cx-bill-total">
+                <span>To pay at counter</span>
+                <strong>{inr(cart.total())}</strong>
+              </div>
+            </div>
+
             <div className="cart-foot">
               <div className="cart-total-row">
-                <span>Total</span>
+                <span>{cart.count()} item{cart.count() > 1 ? 's' : ''} · Total</span>
                 <strong>{inr(cart.total())}</strong>
               </div>
               <button className="btn-v2 primary cart-checkout" onClick={onCheckout}>
-                Proceed to checkout
+                Proceed to checkout <span aria-hidden>→</span>
               </button>
             </div>
           </>
@@ -487,13 +527,19 @@ function CheckoutModal({ store, onClose, onDone }) {
             </div>
             <strong>{inr(cart.total())}</strong>
           </div>
-          <p className="muted">
-            Just your email and password — so this order is saved to your account and
-            you can track it later. <strong>Your cart is safe.</strong>
-          </p>
-          <Link className="btn-v2 primary" to="/login" state={{ from: loc }}>Log in</Link>
-          <Link className="btn-v2" to="/register" state={{ from: loc }}>Create an account</Link>
-          <button className="btn-v2 subtle" onClick={onClose}>Back to cart</button>
+
+          <div className="cx-sheet-body">
+            <p className="cx-gate-copy">
+              Just your email and password — so this order is saved to your account and
+              you can track it later. <strong>Your cart is safe.</strong>
+            </p>
+          </div>
+
+          <div className="cx-sheet-foot">
+            <Link className="btn-v2 primary" to="/login" state={{ from: loc }}>Log in</Link>
+            <Link className="btn-v2" to="/register" state={{ from: loc }}>Create an account</Link>
+            <button className="btn-v2 subtle" onClick={onClose}>Back to cart</button>
+          </div>
         </div>
       </div>
     );
@@ -541,6 +587,7 @@ function CheckoutModal({ store, onClose, onDone }) {
           <strong>{inr(cart.total())}</strong>
         </div>
 
+        <div className="cx-sheet-body">
         <div className="checkout-lines">
           {Object.values(cart.items).map(({ product, quantity }) => (
             <div key={product.id} className="row between">
@@ -570,12 +617,17 @@ function CheckoutModal({ store, onClose, onDone }) {
         </div>
 
         {err && <div className="error">{err}</div>}
-        <button className="btn-v2 primary" onClick={placeOrder} disabled={busy}>
-          {busy ? 'Processing…' : `Confirm order · ${inr(cart.total())}`}
-        </button>
-        <button className="btn-v2 subtle" onClick={onClose} disabled={busy}>
-          Cancel
-        </button>
+        </div>
+
+        <div className="cx-sheet-foot">
+          <button className="btn-v2 primary" onClick={placeOrder} disabled={busy}>
+            {busy ? 'Placing your order…' : `Confirm order · ${inr(cart.total())}`}
+          </button>
+          <button className="btn-v2 subtle" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <span className="cx-trust"><span aria-hidden>🔒</span> Your order is saved to your account</span>
+        </div>
       </div>
     </div>
   );
