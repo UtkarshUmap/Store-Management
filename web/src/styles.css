@@ -994,7 +994,7 @@ tbody tr:hover { background: rgba(12, 131, 31, 0.05); }
 
 /* ---------- Animation utilities (GSAP hooks) ---------- */
 [data-anim='fade-up'],
-[data-anim='stagger-child'] { opacity: 0; }
+[data-anim='stagger-child'] { opacity: 1; }
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
