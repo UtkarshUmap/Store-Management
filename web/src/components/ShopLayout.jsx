@@ -56,7 +56,9 @@ export default function ShopLayout() {
   const onOrders = loc.pathname.startsWith('/my/orders');
 
   return (
-    <div>
+    <div className="cx-shell">
+      {/* The canopy edge of the whole app — green/marigold awning stripe. */}
+      <div className="cx-topline" aria-hidden />
       <header className="shop-top" ref={topRef}>
         <Link to={token ? '/my' : '/'} className="shop-brand">
           <span className="brand-mark" aria-hidden>✦</span>

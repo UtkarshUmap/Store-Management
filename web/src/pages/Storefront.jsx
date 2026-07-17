@@ -188,6 +188,9 @@ export default function Storefront() {
             </button>
           )}
         </div>
+        {/* The scalloped canopy hangs off the sticky bar — the shelf below
+            scrolls under it, exactly like walking under a stall's awning. */}
+        <span className="cx-awning shop-canopy" aria-hidden />
       </header>
 
       {/* Blinkit-style category tiles — the fastest way into a category, and it
@@ -384,6 +387,7 @@ function CartDrawer({ products, onClose, onCheckout }) {
   return (
     <div className="modal-backdrop" ref={backdropRef} onClick={onClose}>
       <aside className="cart-drawer" ref={panelRef} onClick={(e) => e.stopPropagation()}>
+        <span className="cx-awning drawer-awning" aria-hidden />
         <div className="cart-drawer-head">
           <h2>
             Your cart

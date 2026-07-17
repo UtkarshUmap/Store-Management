@@ -57,6 +57,10 @@ export default function Receipt() {
   return (
     <div className="receipt-page">
       <div ref={cardRef} className="receipt-card printable">
+        {/* Inked at an angle, like the shopkeeper actually stamped it.
+        <div className={`rc-stamp ${success ? '' : 'pending'}`} aria-hidden>
+          {success ? 'Paid' : 'Pay at till'}
+        </div> */}
         <div className="receipt-status">
           <div ref={checkRef} className={success ? 'success' : 'pending'}>
             {success ? '✓' : '!'}
@@ -112,6 +116,10 @@ export default function Receipt() {
             ? 'Please pay cash at the counter.'
             : 'Show this screen at the counter.'}
         </p>
+
+        {/* Decorative barcode — the chit the counter recognises. */}
+        <div className="rc-barcode" aria-hidden />
+        <span className="rc-code">{order.orderNumber}</span>
 
         <div className="receipt-actions">
           <button className="btn-v2 primary" onClick={() => window.print()}>Print receipt</button>

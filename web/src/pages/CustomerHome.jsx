@@ -119,8 +119,24 @@ export default function CustomerHome() {
         <p>Scan a shop's QR code to see what's on their shelves and start filling your cart.</p>
       </header>
 
+      {/* The market's promises, on a slow loop. */}
+      <div className="cx-ticker" aria-hidden data-anim="fade-up">
+        <div className="cx-ticker-track">
+          {[0, 1].map((k) => (
+            <span key={k}>
+              <em>⚡ Ready in minutes</em><i>✦</i>
+              <em>💵 Pay at the counter</em><i>✦</i>
+              <em>🧾 Digital receipts, always</em><i>✦</i>
+              <em>🏪 Your local shops, one scan away</em><i>✦</i>
+              <em>🛒 No delivery fee — you're already there</em><i>✦</i>
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* The primary action — everything starts with a scan. */}
       <section className="scan-card" data-anim="fade-up">
+        <span className="cx-awning scan-awning" aria-hidden />
         <div className="scan-card-art" aria-hidden="true">
           <div className="scan-frame">
             <span /><span /><span /><span />
@@ -156,16 +172,24 @@ export default function CustomerHome() {
           </div>
           <div className="shop-cards">
             {shops.map((s) => (
+              /* Each visited shop is drawn as a storefront: its own striped
+                 canopy on top (colours alternate down the lane) and a
+                 signboard initial. */
               <Link className="shop-card" to={`/store/${s.storeSlug}`} key={s.storeSlug}>
-                <span className="shop-card-badge">{s.storeName.slice(0, 1).toUpperCase()}</span>
-                <div className="shop-card-body">
-                  <strong>{s.storeName}</strong>
-                  <span>{s.city || 'Local shop'} · last visit {ago(s.last)}</span>
+                <span className="cx-awning shop-card-awning" aria-hidden />
+                <div className="shop-card-row">
+                  <span className="shop-card-badge">{s.storeName.slice(0, 1).toUpperCase()}</span>
+                  <div className="shop-card-body">
+                    <strong>{s.storeName}</strong>
+                    <span>{s.city || 'Local shop'} · last visit {ago(s.last)}</span>
+                  </div>
+                </div>
+                <div className="shop-card-foot">
                   <span className="shop-card-meta">
                     {s.visits} order{s.visits > 1 ? 's' : ''} · {formatINR(s.spent)} spent
                   </span>
+                  <span className="shop-card-go">Shop again →</span>
                 </div>
-                <span className="shop-card-go">Shop again →</span>
               </Link>
             ))}
           </div>
